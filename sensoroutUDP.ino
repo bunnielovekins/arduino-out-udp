@@ -6,9 +6,9 @@
 //Internet stuff
 byte mac[] = { 0x8E, 0x8D, 0xBE, 0x8F, 0xFE, 0xEE };
 //char server[] = "ec2-54-213-123-121.us-west-2.compute.amazonaws.com";
-char server[] = "10.32.24.114";
+char server[] = "10.32.25.136";
 //IPAddress serverIP(54,213,123,121);
-IPAddress serverIP(10,32,24,114);
+IPAddress serverIP(10,32,25,136);
 char buffer[UDP_TX_PACKET_MAX_SIZE];
 
 //Ports
@@ -34,8 +34,9 @@ char udpMessageOut[] = "get   ";
 //Various
 int sensorNum = -1;
 int debugInfoTCP = 0;
-int debugInfoUDP = 1;
+int debugInfoUDP = 0;
 int moreDebugInfo = 0;
+int delayAmount = 20;
 
 void setup(){
   Serial.begin(9600);
@@ -47,7 +48,6 @@ void setup(){
   else Serial.println("Connected to Ethernet");
   delay(1000);
   
-  Serial.println(Ethernet.localIP());
   
   getMyNum();
   
@@ -67,7 +67,7 @@ void loop(){
   Udp.write(udpMessageOut);
   Udp.endPacket();
   
-  delay(50);
+  delay(delayAmount);
   
   //Attempt to get a message
   int packetSize = Udp.parsePacket();
@@ -76,13 +76,15 @@ void loop(){
     Serial.println(packetSize);
   }
   if(packetSize){
+    
     Udp.read(buffer,packetSize);
     inValue = myParse(buffer,packetSize);
     if(moreDebugInfo){
       Serial.print("inValue:");
       Serial.println(inValue);
     }
-    outValue = map(inValue,0,1023,0,179);
+    if(inValue>=0 && inValue<=1024)
+      outValue = map(inValue,0,1023,0,179);
     if(moreDebugInfo){
       Serial.print("Got message: \n");
       Serial.println(buffer);
@@ -91,10 +93,18 @@ void loop(){
   if(debugInfoUDP){
     Serial.print("outVal:");
     Serial.println(outValue);
+    if(outValue>180 || outValue<0){
+      Serial.println("Got a weird value. More info:");
+      Serial.print("inVal:");
+      Serial.println(inValue);
+      Serial.print("buffer:");
+      Serial.println(buffer);
+    }
   }
+  
   //Set servos accordingly
-  myservo8.write(outValue);
-  myservo9.write(outValue);
+    myservo8.write(outValue);
+    myservo9.write(outValue);
 }
 
 void simpleUDPMessage(char str[]){
@@ -115,6 +125,8 @@ int myParse(char buf[], int len){
         ret+=buf[i]-48;
       }
     }
+    else break;
+    
   }
   if(moreDebugInfo){
     Serial.print("Parsed ");
